@@ -188,7 +188,3 @@ poetry run pytest
 ├── pyproject.toml
 └── README.md
 ```
-
-## Licença
-
-Distribuído sob a licença MIT. Veja o arquivo `LICENSE` para mais detalhes.
