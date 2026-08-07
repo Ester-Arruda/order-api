@@ -1,90 +1,194 @@
-# move-tech-cloud-application-comp-3
+# API de Pedidos
 
-Ponto de partida da **Competência 3 — Desenvolvimento e Operação de Aplicações (DevOps)**.
+API REST para gestão de pedidos e itens, construída em **Python** com **FastAPI**.
 
-Este repositório é um template. Use-o como base para criar o seu próprio repositório e trabalhar na competência.
+> Projeto base do curso **Move Tech — Magalu × Prósper Digital Skills**.
 
-> Parte do curso **Move Tech** — Magalu × Prósper Digital Skills  
-> Formação em Cloud Computing para iniciantes
-
----
-
-## O que tem aqui
-
-Uma API simples de micro e-commerce com pedidos e itens, construída em Python com FastAPI.
-
-A aplicação armazena os dados em memória. Ainda não tem deploy na nuvem — isso é exatamente o que você vai fazer nesta competência.
-
-### Endpoints disponíveis
-
-| Método | Rota | Descrição |
-|--------|------|-----------|
-| `GET` | `/health` | Verifica se a API está no ar |
-| `POST` | `/orders` | Cria um novo pedido |
-| `GET` | `/orders` | Lista todos os pedidos |
-| `GET` | `/orders/{id}` | Retorna um pedido com seus itens |
-| `DELETE` | `/orders/{id}` | Cancela um pedido |
-| `POST` | `/orders/{id}/items` | Adiciona um item ao pedido |
-| `GET` | `/orders/{id}/items` | Lista os itens de um pedido |
+![Python](https://img.shields.io/badge/python-3.11-blue)
+![FastAPI](https://img.shields.io/badge/FastAPI-0.11x-009688)
+![Docker](https://img.shields.io/badge/docker-ready-2496ED)
+![License](https://img.shields.io/badge/license-MIT-green)
 
 ---
 
-## O que você vai fazer nesta competência
+## Sumário
 
-Ao final da Competência 3, a aplicação deve estar **versionada, conteinerizada e publicada na Magalu Cloud**.
-
-- [ ] Publicar a imagem no Container Registry da Magalu Cloud
-- [ ] Criar o manifest Kubernetes (`k8s/app.yaml`)
-- [ ] Fazer o deploy no cluster Kubernetes da Magalu Cloud
-- [ ] Configurar o pipeline de CI/CD no GitHub Actions
-
----
-
-## O Dockerfile
-
-O repositório já inclui um `Dockerfile` pronto. Ele define como a aplicação é empacotada em uma imagem Docker:
-
-```dockerfile
-FROM python:3.11-slim          # Imagem base com Python 3.11
-
-WORKDIR /app                   # Diretório de trabalho dentro do container
-
-RUN pip install poetry==1.8.3  # Instala o gerenciador de dependências
-
-COPY pyproject.toml poetry.lock* ./
-RUN poetry config virtualenvs.create false && \
-    poetry install --without dev --no-root  # Instala apenas as dependências de produção
-
-COPY app/ ./app/               # Copia o código da aplicação
-
-EXPOSE 8000                    # Porta que a aplicação vai escutar
-
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
-```
-
-O `docker-compose.yml` usa esse Dockerfile para construir e rodar a aplicação localmente. Na nuvem, o pipeline faz o mesmo — constrói a imagem e publica no registry.
-
-> **Referência:** [Dockerfile — Documentação oficial Docker](https://docs.docker.com/reference/dockerfile/)
+- [Sobre](#sobre)
+- [Stack](#stack)
+- [Pré-requisitos](#pré-requisitos)
+- [Como rodar](#como-rodar)
+  - [Com Docker](#com-docker)
+  - [Localmente (sem Docker)](#localmente-sem-docker)
+- [Observabilidade](#observabilidade)
+- [Endpoints da API](#endpoints-da-api)
+- [Exemplos de uso](#exemplos-de-uso)
+- [Testes](#testes)
+- [Estrutura do projeto](#estrutura-do-projeto)
+- [Licença](#licença)
 
 ---
 
-## Como rodar localmente
+## Sobre
 
-**Pré-requisito:** [Docker Desktop](https://www.docker.com/products/docker-desktop/) instalado (Mac e Windows) ou [Docker Engine](https://docs.docker.com/engine/install/) (Linux).
+Serviço que expõe operações de criação, consulta e cancelamento de pedidos, além do gerenciamento de itens associados a cada pedido. Inclui métricas Prometheus e documentação interativa via Scalar.
+
+## Stack
+
+- **Linguagem:** Python 3.11
+- **Framework:** FastAPI
+- **ORM:** SQLAlchemy
+- **Documentação interativa:** Scalar (`scalar_fastapi`)
+- **Métricas:** Prometheus (`prometheus_fastapi_instrumentator`)
+- **Containerização:** Docker / Docker Compose
+- **Deploy:** Kubernetes (manifests em `k8s/`)
+
+## Pré-requisitos
+
+- [Docker Desktop](https://www.docker.com/products/docker-desktop/) (Mac/Windows) ou [Docker Engine](https://docs.docker.com/engine/install/) (Linux)
+- Para rodar sem Docker: Python 3.11+ e [Poetry](https://python-poetry.org/docs/#installation)
+
+## Como rodar
+
+### Com Docker
 
 ```bash
 docker compose up --build
 ```
 
-Acesse a documentação interativa em: http://localhost:8000/docs
+A API estará disponível em `http://localhost:8000`.
 
----
+### Localmente (sem Docker)
 
-## Próxima etapa
+```bash
+poetry install
+poetry run uvicorn app.main:app --reload
+```
 
-Ao concluir esta competência, a solução de referência será publicada em:  
-[move-tech-cloud-application-comp-4](https://github.com/move-tech-cloud-computing/move-tech-cloud-application-comp-4)
+## Observabilidade
 
----
+- **Documentação interativa:** `http://localhost:8000/docs` (via Scalar)
+- **Métricas Prometheus:** `http://localhost:8000/metrics`
+- **Health check:** `GET /health` — retorna o status da aplicação e da conexão com o banco de dados
 
-> Inspirado no tutorial [Construindo APIs robustas utilizando Python](https://github.com/luizalabs/tutorial-python-brasil) do LuizaLabs.
+## Endpoints da API
+
+| Método | Rota | Descrição |
+|--------|------|-----------|
+| `GET` | `/health` | Verifica se a API e o banco de dados estão no ar |
+| `GET` | `/stats` | Retorna estatísticas de pedidos e itens |
+| `POST` | `/orders` | Cria um novo pedido |
+| `GET` | `/orders` | Lista todos os pedidos |
+| `GET` | `/orders/{id}` | Retorna um pedido com seus itens |
+| `DELETE` | `/orders/{id}` | Cancela um pedido (soft delete, status `cancelled`) |
+| `POST` | `/orders/{id}/items` | Adiciona um item ao pedido |
+| `GET` | `/orders/{id}/items` | Lista os itens de um pedido |
+
+## Exemplos de uso
+
+### Criar um pedido
+
+```bash
+curl -X POST http://localhost:8000/orders \
+  -H "Content-Type: application/json" \
+  -d '{
+    "customer": "Maria Silva"
+  }'
+```
+
+**Resposta (`201 Created`):**
+
+```json
+{
+  "id": "b3f1c2e4-1a2b-4c3d-9e8f-1234567890ab",
+  "customer": "Maria Silva",
+  "status": "open",
+  "created_at": "2026-08-07T10:00:00",
+  "items": []
+}
+```
+
+### Adicionar um item ao pedido
+
+```bash
+curl -X POST http://localhost:8000/orders/{order_id}/items \
+  -H "Content-Type: application/json" \
+  -d '{
+    "sku": "CAM-PRETA-M",
+    "description": "Camiseta Preta - Tamanho M",
+    "quantity": 2
+  }'
+```
+
+**Resposta (`201 Created`):**
+
+```json
+{
+  "id": "d4e5f6a7-2b3c-4d5e-8f9a-0987654321cd",
+  "sku": "CAM-PRETA-M",
+  "description": "Camiseta Preta - Tamanho M",
+  "quantity": 2
+}
+```
+
+### Cancelar um pedido
+
+```bash
+curl -X DELETE http://localhost:8000/orders/{order_id}
+```
+
+**Resposta:** `204 No Content`
+
+### Estatísticas
+
+```bash
+curl http://localhost:8000/stats
+```
+
+**Resposta:**
+
+```json
+{
+  "orders": {
+    "total": 12,
+    "open": 9,
+    "cancelled": 3
+  },
+  "items": {
+    "total": 27
+  }
+}
+```
+
+## Testes
+
+```bash
+poetry run pytest
+```
+
+## Estrutura do projeto
+
+```
+.
+├── .github/
+│   └── workflows/
+│       └── deploy.yml
+├── app/
+│   ├── database.py
+│   ├── main.py
+│   └── models.py
+├── docs/
+│   └── data-model.md
+├── k8s/
+│   └── app.yaml
+├── tests/
+│   └── test_main.py
+├── .gitignore
+├── Dockerfile
+├── docker-compose.yml
+├── pyproject.toml
+└── README.md
+```
+
+## Licença
+
+Distribuído sob a licença MIT. Veja o arquivo `LICENSE` para mais detalhes.
