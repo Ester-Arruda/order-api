@@ -1,0 +1,53 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cloud-application
+  labels:
+    app: cloud-application
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: cloud-application
+  template:
+    metadata:
+      labels:
+        app: cloud-application
+    spec:
+      containers:
+      - name: cloud-application
+        image: container-registry.br-se1.magalu.cloud/${MGC_REGISTRY_NAME}/cloud-application:latest
+        ports:
+        - containerPort: 8000
+        env:
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: db-secret
+              key: url
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 10
+          periodSeconds: 30
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 5
+          periodSeconds: 10
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: cloud-application
+spec:
+  type: LoadBalancer
+  selector:
+    app: cloud-application
+  ports:
+  - port: 80
+    targetPort: 8000

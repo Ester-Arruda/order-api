@@ -1,0 +1,62 @@
+name: Deploy
+
+on:
+  workflow_dispatch:
+
+env:
+  REGISTRY: container-registry.br-se1.magalu.cloud
+  IMAGE_NAME: cloud-application
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+
+    - uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+
+    - name: Instalar dependências
+      run: |
+        pip install poetry
+        poetry install --no-root
+
+    - name: Executar testes
+      run: poetry run pytest
+
+  build-and-deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Login no Container Registry
+      run: |
+        docker login https://${{ env.REGISTRY }} \
+          -u ${{ secrets.MGC_REGISTRY_USER }} \
+          -p ${{ secrets.MGC_REGISTRY_PASSWORD }}
+
+    - name: Build e push da imagem
+      run: |
+        IMAGE=${{ env.REGISTRY }}/${{ secrets.MGC_REGISTRY_NAME }}/${{ env.IMAGE_NAME }}:latest
+        docker build -t $IMAGE .
+        docker push $IMAGE
+
+    - name: Configurar kubectl
+      run: |
+        echo "${{ secrets.MGC_KUBECONFIG }}" > kubeconfig.yaml
+
+    - name: Criar Secret do banco
+      run: |
+        export KUBECONFIG=kubeconfig.yaml
+        kubectl create secret generic db-secret \
+          --from-literal=url=${{ secrets.DATABASE_URL }} \
+          --dry-run=client -o yaml | kubectl apply -f -
+
+    - name: Deploy no Kubernetes
+      run: |
+        export KUBECONFIG=kubeconfig.yaml
+        export MGC_REGISTRY_NAME=${{ secrets.MGC_REGISTRY_NAME }}
+        envsubst < k8s/app.yaml | kubectl apply -f -
+        kubectl rollout status deployment/cloud-application
