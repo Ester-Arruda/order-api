@@ -167,15 +167,34 @@ poetry run pytest
 
 ## Estrutura do projeto
 
+O código da aplicação é organizado em camadas (API → Service → Repository → Model), separando roteamento HTTP, regra de negócio e acesso a dados:
+
 ```
 .
 ├── .github/
 │   └── workflows/
 │       └── deploy.yml
 ├── app/
-│   ├── database.py
-│   ├── main.py
-│   └── models.py
+│   ├── __init__.py
+│   ├── database.py          # engine, Base declarativa e sessão (get_db)
+│   ├── main.py               # criação do app, logging, métricas e inclusão do router
+│   ├── api/
+│   │   ├── __init__.py
+│   │   └── v1/
+│   │       ├── __init__.py
+│   │       ├── router.py     # agrega os routers de health e orders
+│   │       ├── health.py     # rotas GET /health e GET /stats
+│   │       └── orders.py     # rotas de /orders e /orders/{id}/items
+│   ├── models/
+│   │   ├── __init__.py       # reexporta Order e Item
+│   │   ├── order.py          # entidade Order (SQLAlchemy)
+│   │   └── item.py           # entidade Item (SQLAlchemy)
+│   ├── repositories/
+│   │   ├── __init__.py
+│   │   └── order_repository.py  # acesso direto ao banco (queries, commit)
+│   └── services/
+│       ├── __init__.py
+│       └── order_service.py     # regra de negócio, serialização e logging de eventos
 ├── docs/
 │   └── data-model.md
 ├── k8s/
@@ -188,3 +207,11 @@ poetry run pytest
 ├── pyproject.toml
 └── README.md
 ```
+**Responsabilidade de cada camada:**
+
+| Camada | Pasta | Responsabilidade |
+|--------|-------|-------------------|
+| API | `app/api/v1/` | Recebe a requisição HTTP, valida entrada (Pydantic) e traduz o resultado do service em status codes / exceções |
+| Service | `app/services/` | Regra de negócio, orquestra chamadas ao repository e monta a resposta (dict) |
+| Repository | `app/repositories/` | Único ponto que fala com o banco via SQLAlchemy (queries, commit, refresh) |
+| Model | `app/models/` | Entidades ORM (`Order`, `Item`) |
